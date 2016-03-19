@@ -9,7 +9,7 @@ import (
 	"net"
 	"os/exec"
 
-	"isucdc.com/keyescrow/escrow"
+	"isucdc.com/keyescrow-server/escrow"
 
 	zmq "github.com/pebbe/zmq3"
 )
