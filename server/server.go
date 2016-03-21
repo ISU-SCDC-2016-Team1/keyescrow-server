@@ -168,7 +168,7 @@ func (s *Server) Loop() {
 
 			areq := AuthResponse{
 				User:  ar.User,
-				Token: []byte(authtoken),
+				Token: authtoken,
 			}
 			areq.Send(s.Responder)
 		}

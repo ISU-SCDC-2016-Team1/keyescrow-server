@@ -22,8 +22,12 @@ func UserKeyPath(name string) (string, string) {
 }
 
 func AuthUser(username string, password string) bool {
-	ld := ldap.Dial("192.168.1.1", "387")
-	err := ld.Bind(username, password)
+	ld, err := ldap.Dial("192.168.1.1", "387")
+    if err != nil {
+        return false
+    }
+
+	err = ld.Bind(username, password)
 	if err == nil {
 		return true
 	}
