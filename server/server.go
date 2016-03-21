@@ -2,12 +2,15 @@ package server
 
 import (
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net"
 	"os/exec"
+
+	"crypto/rand"
 
 	"isucdc.com/keyescrow-server/escrow"
 
@@ -133,7 +136,7 @@ func (s *Server) Loop() {
 			kresp.Send(s.Responder)
 		case KeyResponse:
 			kr := message.(KeyResponse)
-			log.Printf("Get Key Set Request for: %v", kr.User)
+			log.Printf("Got Key Set Request for: %v", kr.User)
 
 			key := escrow.New(kr.User, kr.PubKey, kr.PrivKey)
 			if err := key.Save(); err != nil {
@@ -141,14 +144,33 @@ func (s *Server) Loop() {
 				continue
 			}
 
-			// Backup the generated key
-			cmd := exec.Command("cat", kr.PubKey, ">>", "/root/.ssh/authorized_keys")
-			cmd.Run()
-
 			kreq := KeyRequest{
 				User: kr.User,
 			}
 			kreq.Send(s.Responder)
+		case AuthRequest:
+			ar := message.(AuthRequest)
+			log.Printf("Got Auth Request for: %v", ar.User)
+
+			if escrow.AuthUser(ar.User, ar.Password) == false {
+				ErrorMessage{Message: "Invalid username or password."}.Send(s.Responder)
+				continue
+			}
+
+			var buffer []byte
+			buffer = make([]byte, 16)
+			token_read, err := rand.Read(buffer)
+			if token_read != 16 || err != nil {
+				ErrorMessage{Message: "Error creating token."}.Send(s.Responder)
+				continue
+			}
+			authtoken := hex.EncodeToString(buffer)
+
+			areq := AuthResponse{
+				User:  ar.User,
+				Token: []byte(authtoken),
+			}
+			areq.Send(s.Responder)
 		}
 	}
 }

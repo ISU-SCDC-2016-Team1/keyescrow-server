@@ -9,10 +9,12 @@ import (
 
 // Message Types
 const (
-	MSG_ERR float64 = iota
-	MSG_KEY_REQUEST
-	MSG_KEY_RESPONSE
-	MSG_KEY_DISPATCH
+	MSG_ERR           float64 = iota
+	MSG_KEY_REQUEST   float64 = iota
+	MSG_KEY_RESPONSE  float64 = iota
+	MSG_KEY_DISPATCH  float64 = iota
+	MSG_AUTH_REQUEST  float64 = iota
+	MSG_AUTH_RESPONSE float64 = iota
 )
 
 type Message interface {
@@ -60,6 +62,24 @@ func RecvMsg(data []byte) Message {
 		}
 		return d
 
+	case MSG_AUTH_REQUEST:
+		log.Println("Got AUTH_REQUEST")
+		var ar AuthRequest
+		if err := json.Unmarshal(data, &ar); err != nil {
+			log.Printf("Error unmarshaling auth request: %v", err.Error())
+			return nil
+		}
+		return ar
+
+	case MSG_AUTH_RESPONSE:
+		log.Println("Got AUTH_RESPONSE")
+		var ar AuthResponse
+		if err := json.Unmarshal(data, &ar); err != nil {
+			log.Printf("Error unmarshaling auth response: %v", err.Error())
+			return nil
+		}
+		return ar
+
 	case MSG_ERR:
 		log.Println("Got ERR")
 		var e ErrorMessage
@@ -75,9 +95,25 @@ func RecvMsg(data []byte) Message {
 	}
 }
 
+type ErrorMessage struct {
+	ID      float64 `json:"id"`
+	Message string  `json:"message"`
+}
+
+func (e ErrorMessage) Send(socket *zmq.Socket) error {
+	e.ID = MSG_ERR
+
+	b, err := json.Marshal(e)
+
+	log.Printf("Sending Error")
+	_, err = socket.SendBytes(b, 0)
+	return err
+}
+
 type KeyRequest struct {
-	ID   float64 `json:"id"`
-	User string  `json:"user"`
+	ID    float64 `json:"id"`
+	User  string  `json:"user"`
+	Token string  `json:"token"`
 }
 
 func (kr KeyRequest) Send(socket *zmq.Socket) error {
@@ -104,29 +140,47 @@ func (kr KeyResponse) Send(socket *zmq.Socket) error {
 	return err
 }
 
-type ErrorMessage struct {
-	ID      float64 `json:"id"`
-	Message string  `json:"message"`
-}
-
-func (e ErrorMessage) Send(socket *zmq.Socket) error {
-	e.ID = MSG_ERR
-
-	b, err := json.Marshal(e)
-
-	log.Printf("Sending Error")
-	_, err = socket.SendBytes(b, 0)
-	return err
-}
-
 type Dispatch struct {
-	ID   float64 `json:"id"`
-	User string  `json:"user"`
+	ID    float64 `json:"id"`
+	User  string  `json:"user"`
+	Token string  `json:"token"`
 }
 
 func (d Dispatch) Send(socket *zmq.Socket) error {
 	d.ID = MSG_KEY_DISPATCH
 	b, err := json.Marshal(d)
+	_, err = socket.SendBytes(b, 0)
+	return err
+}
+
+type AuthRequest struct {
+	ID       float64 `json:"id"`
+	User     string  `json:"user"`
+	Password string  `json:"password"`
+}
+
+func (ar AuthRequest) Send(socket *zmq.Socket) error {
+	ar.ID = MSG_AUTH_REQUEST
+
+	b, err := json.Marshal(ar)
+
+	log.Printf("Sending AuthRequest for user: %v", ar.User)
+	_, err = socket.SendBytes(b, 0)
+	return err
+}
+
+type AuthResponse struct {
+	ID    float64 `json:"id"`
+	User  string  `json:"user"`
+	Token string  `json:"token"`
+}
+
+func (ar AuthResponse) Send(socket *zmq.Socket) error {
+	ar.ID = MSG_AUTH_RESPONSE
+
+	b, err := json.Marshal(ar)
+
+	log.Printf("Sending AuthResponse for user: %v", ar.User)
 	_, err = socket.SendBytes(b, 0)
 	return err
 }
