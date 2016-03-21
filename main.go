@@ -27,7 +27,7 @@ func main() {
 		} `goptions:"server"`
 	}{ // Default values go here
 		Host: &net.TCPAddr{
-			IP:   net.ParseIP("localhost"),
+			IP:   net.ParseIP("127.0.0.1"),
 			Port: 7654,
 		},
 	}
