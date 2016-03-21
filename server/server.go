@@ -9,6 +9,7 @@ import (
 	"log"
 	"net"
 	"os/exec"
+	"time"
 
 	"crypto/rand"
 
@@ -22,6 +23,13 @@ const (
 	GITLAB_USER_URL = "http://gitlab/api/v3/users?username=%v&private_token=%v"
 	GITLAB_USER_KEY = "http://gitlab/api/v3/users/%d/keys?private_token=%v"
 )
+
+type authinfo struct {
+	Token  string
+	Issued time.Time
+}
+
+var authTable map[string][]authinfo = make(map[string][]authinfo)
 
 type Server struct {
 	Responder *zmq.Socket
@@ -119,6 +127,11 @@ func (s *Server) Loop() {
 			kr := message.(KeyRequest)
 			log.Printf("Got Key Request for: %v", kr.User)
 
+			if validateAuthToken(kr.User, kr.Token) == false {
+				ErrorMessage{Message: "Invalid token"}.Send(s.Responder)
+				continue
+			}
+
 			key, err := escrow.FindUserKey(kr.User)
 			if err != nil || key == nil {
 				errmsg := fmt.Sprintf("Could not find key for %v", kr.User)
@@ -137,6 +150,11 @@ func (s *Server) Loop() {
 		case KeyResponse:
 			kr := message.(KeyResponse)
 			log.Printf("Got Key Set Request for: %v", kr.User)
+
+			if validateAuthToken(kr.User, kr.Token) == false {
+				ErrorMessage{Message: "Invalid token"}.Send(s.Responder)
+				continue
+			}
 
 			key := escrow.New(kr.User, kr.PubKey, kr.PrivKey)
 			if err := key.Save(); err != nil {
@@ -157,14 +175,11 @@ func (s *Server) Loop() {
 				continue
 			}
 
-			var buffer []byte
-			buffer = make([]byte, 16)
-			token_read, err := rand.Read(buffer)
-			if token_read != 16 || err != nil {
+			authtoken := createAuthToken(ar.User)
+			if authtoken == "" {
 				ErrorMessage{Message: "Error creating token."}.Send(s.Responder)
 				continue
 			}
-			authtoken := hex.EncodeToString(buffer)
 
 			areq := AuthResponse{
 				User:  ar.User,
@@ -187,4 +202,32 @@ func SetGitlabKey(user string, pubkey string) {
 
 	cmd := exec.Command("sh", "addssh.sh", key.User, "ssh-rsa", key.PublicKey)
 	cmd.Run()
+}
+
+func createAuthToken(username string) string {
+	var buffer []byte
+	buffer = make([]byte, 16)
+	token_read, err := rand.Read(buffer)
+	if token_read != 16 || err != nil {
+		return ""
+	}
+	authtoken := hex.EncodeToString(buffer)
+
+	authfield := authinfo{authtoken, time.Now()}
+	authTable[username] = append(authTable[username], authfield)
+
+	return authtoken
+}
+
+func validateAuthToken(username string, token string) bool {
+	for i := range authTable[username] {
+		current := authTable[username][i]
+		if current.Token == token {
+			if time.Since(current.Issued) > (5 * time.Minute) {
+				return true
+			}
+			return false
+		}
+	}
+	return false
 }

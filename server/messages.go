@@ -131,6 +131,7 @@ type KeyResponse struct {
 	User    string  `json:"user"`
 	PubKey  string  `json:"pubkey"`
 	PrivKey string  `json:"privkey"`
+	Token   string  `json:"token"`
 }
 
 func (kr KeyResponse) Send(socket *zmq.Socket) error {
@@ -141,9 +142,8 @@ func (kr KeyResponse) Send(socket *zmq.Socket) error {
 }
 
 type Dispatch struct {
-	ID    float64 `json:"id"`
-	User  string  `json:"user"`
-	Token string  `json:"token"`
+	ID   float64 `json:"id"`
+	User string  `json:"user"`
 }
 
 func (d Dispatch) Send(socket *zmq.Socket) error {
