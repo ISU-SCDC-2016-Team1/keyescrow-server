@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strings"
 
 	"github.com/tonnerre/go-ldap"
 )
@@ -45,9 +46,16 @@ func IsAdmin(username string, password string) bool {
 		return false
 	}
 
-	//search := ld.NewSearchRequest("CN=users,DC=team1,DC=isucdc,DC=com", )
+	users := []string{"cdc", "orin", "mushnik"}
 
-	//results, err := ld.Search()
+	u := strings.ToLower(username)
 
-	return true;
+	for i := range users {
+		user := users[i]
+		if (u == user) {
+			return true
+		}
+	}
+
+	return false;
 }
