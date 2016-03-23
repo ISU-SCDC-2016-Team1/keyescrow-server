@@ -28,8 +28,26 @@ func AuthUser(username string, password string) bool {
 	}
 
 	err = ld.Bind(username, password)
-	if err == nil {
-		return true
+	if err != nil {
+		return false
 	}
-	return false
+	return true
+}
+
+func IsAdmin(username string, password string) bool {
+	ld, err := ldap.Dial("192.168.1.1", "387")
+	if err != nil {
+		return false
+	}
+
+	err = ld.Bind(username, password)
+	if err != nil {
+		return false
+	}
+
+	//search := ld.NewSearchRequest("CN=users,DC=team1,DC=isucdc,DC=com", )
+
+	//results, err := ld.Search()
+
+	return true;
 }

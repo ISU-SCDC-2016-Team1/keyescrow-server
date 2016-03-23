@@ -25,11 +25,13 @@ const (
 )
 
 type authinfo struct {
-	Token  string
-	Issued time.Time
+	Token    string
+	User     string
+	Issued   time.Time
+	IsAdmin  bool
 }
 
-var authTable map[string][]authinfo = make(map[string][]authinfo)
+var authTable map[string]authinfo = make(map[string]authinfo)
 
 type Server struct {
 	Responder *zmq.Socket
@@ -175,7 +177,7 @@ func (s *Server) Loop() {
 				continue
 			}
 
-			authtoken := createAuthToken(ar.User)
+			authtoken := createAuthToken(ar.User, ar.Password)
 			if authtoken == "" {
 				ErrorMessage{Message: "Error creating token."}.Send(s.Responder)
 				continue
@@ -204,7 +206,7 @@ func SetGitlabKey(user string, pubkey string) {
 	cmd.Run()
 }
 
-func createAuthToken(username string) string {
+func createAuthToken(username string, password string) string {
 	var buffer []byte
 	buffer = make([]byte, 16)
 	token_read, err := rand.Read(buffer)
@@ -213,21 +215,22 @@ func createAuthToken(username string) string {
 	}
 	authtoken := hex.EncodeToString(buffer)
 
-	authfield := authinfo{authtoken, time.Now()}
-	authTable[username] = append(authTable[username], authfield)
+	authfield := authinfo{authtoken, username, time.Now(), escrow.IsAdmin(username, password)}
+	authTable[authtoken] = authfield
 
 	return authtoken
 }
 
 func validateAuthToken(username string, token string) bool {
-	for i := range authTable[username] {
-		current := authTable[username][i]
-		if current.Token == token {
-			if time.Since(current.Issued) > (5 * time.Minute) {
-				return true
-			}
-			return false
+	authfield := authTable[token];
+
+	if time.Since(authfield.Issued) < (5 * time.Minute) {
+		if authfield.User == username {
+			return true
+		} else {
+			return authfield.IsAdmin
 		}
 	}
+
 	return false
 }
