@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"log"
 	"strings"
 
 	"github.com/tonnerre/go-ldap"
@@ -23,26 +24,34 @@ func UserKeyPath(name string) (string, string) {
 }
 
 func AuthUser(username string, password string) bool {
-	ld, err := ldap.Dial("192.168.1.1", "387")
+	ld, err := ldap.Dial("tcp", "10.4.4.2:389")
 	if err != nil {
+		log.Printf("Error LDAP Connect: %v\n", err);
 		return false
 	}
 
-	err = ld.Bind(username, password)
+	ustring := fmt.Sprintf("cn=%v,cn=users,dc=team1,dc=isucdc,dc=com", username)
+
+	err = ld.Bind(ustring, password)
 	if err != nil {
+		log.Printf("Error LDAP Bind (%v,%v): %v\n", ustring, password, err);
 		return false
 	}
 	return true
 }
 
 func IsAdmin(username string, password string) bool {
-	ld, err := ldap.Dial("192.168.1.1", "387")
+	ld, err := ldap.Dial("tcp", "10.4.4.2:389")
 	if err != nil {
+		log.Printf("Error LDAP Connect: %v\n", err);
 		return false
 	}
 
-	err = ld.Bind(username, password)
+	ustring := fmt.Sprintf("cn=%v,cn=users,dc=team1,dc=isucdc,dc=com", username)
+
+	err = ld.Bind(ustring, password)
 	if err != nil {
+		log.Printf("Error LDAP Bind (%v,%v): %v\n", ustring, password, err);
 		return false
 	}
 
