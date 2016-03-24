@@ -6,10 +6,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net/url"
 	"log"
 	"net"
 	"os/exec"
 	"time"
+	"net/http"
 
 	"crypto/rand"
 
@@ -19,9 +21,9 @@ import (
 )
 
 const (
-	GITLABKEY       = "UyrcEQzJwmoaEiTHtRjf"
-	GITLAB_USER_URL = "http://gitlab/api/v3/users?username=%v&private_token=%v"
-	GITLAB_USER_KEY = "http://gitlab/api/v3/users/%d/keys?private_token=%v"
+	GITLABKEY       = "asdffdsa"
+	GITLAB_USER_URL = "http://git.team1.isucdc.com/api/v3/users?username=%v&private_token=%v"
+	GITLAB_USER_KEY = "http://git.team1.isucdc.com/api/v3/users/%d/keys?private_token=%v"
 )
 
 type authinfo struct {
@@ -196,14 +198,50 @@ func (s *Server) Close() {
 	s.Responder.Close()
 }
 
-func SetGitlabKey(user string, pubkey string) {
+func SetGitlabKey(user string, pubkey string) error {
 	key, err := escrow.FindUserKey(user)
 	if err != nil {
-		return
+		return err
 	}
 
-	cmd := exec.Command("sh", "addssh.sh", key.User, "ssh-rsa", key.PublicKey)
-	cmd.Run()
+	resp, err := http.Get(fmt.Sprintf(GITLAB_USER_URL, user, GITLABKEY))
+	if err != nil {
+		return err
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		resp.Body.Close()
+		return err
+	}
+	resp.Body.Close()
+
+	var jsonObj map[string]string
+
+	err = json.Unmarshal(body, jsonObj)
+	if err != nil {
+		return err
+	}
+
+	log.Println(jsonObj["id"])
+
+	resp, err = http.PostForm(fmt.Sprintf(GITLAB_USER_KEY, jsonObj["id"], GITLABKEY), url.Values{"id": {jsonObj["id"]}, "title": {"ssh-rsa"}, "key": {key.PublicKey}})
+	if err != nil {
+		return err
+	}
+
+	body, err = ioutil.ReadAll(resp.Body)
+	defer resp.Body.Close()
+	if err != nil {
+		return err
+	}
+
+	log.Println(body)
+
+	return nil
+
+	//cmd := exec.Command("sh", "addssh.sh", key.User, "ssh-rsa", key.PublicKey)
+	//cmd.Run()
 }
 
 func createAuthToken(username string, password string) string {
