@@ -6,6 +6,7 @@ import (
 	"path"
 	"log"
 	"strings"
+	"net/http"
 
 	"github.com/tonnerre/go-ldap"
 )
@@ -41,29 +42,16 @@ func AuthUser(username string, password string) bool {
 }
 
 func IsAdmin(username string, password string) bool {
-	ld, err := ldap.Dial("tcp", "10.4.4.2:389")
+	resp, err := http.Get("https://ldap.team1.isucdc.com/isAdmin.ashx?user=" + username)
+
 	if err != nil {
-		log.Printf("Error LDAP Connect: %v\n", err);
 		return false
 	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
 
-	ustring := fmt.Sprintf("cn=%v,cn=users,dc=team1,dc=isucdc,dc=com", username)
-
-	err = ld.Bind(ustring, password)
-	if err != nil {
-		log.Printf("Error LDAP Bind (%v,%v): %v\n", ustring, password, err);
-		return false
-	}
-
-	users := []string{"cdc", "orin", "mushnik"}
-
-	u := strings.ToLower(username)
-
-	for i := range users {
-		user := users[i]
-		if (u == user) {
-			return true
-		}
+	if (strings.TrimSpace(string(body)) == "True") {
+		return true
 	}
 
 	return false;
