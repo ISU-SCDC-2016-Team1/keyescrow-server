@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	GITLABKEY       = "asdffdsa"
+	GITLABKEY       = "F3KyJyinpFVf1Vq2Dj5M"
 	GITLAB_USER_URL = "http://git.team1.isucdc.com/api/v3/users?username=%v&private_token=%v"
 	GITLAB_USER_KEY = "http://git.team1.isucdc.com/api/v3/users/%d/keys?private_token=%v"
 )
@@ -62,67 +62,63 @@ func (s *Server) Loop() {
 
 			pub, _ := escrow.UserKeyPath(d.User)
 
-			file, err := ioutil.ReadFile("./hosts.json")
-			if err != nil {
-				errmsg := "Could not read hosts file"
-				log.Println(errmsg)
-				ErrorMessage{Message: errmsg}.Send(s.Responder)
-				continue
+			err := SetGitlabKey(d.User, pub)
+
+			if (err != nil) {
+				log.Println(err)
 			}
 
-			var jsontype interface{}
-			json.Unmarshal(file, &jsontype)
+			hosts := []string{"runner-1", "runner-2", "www", "git", "keyescrow", "shell"}
 
-			SetGitlabKey(d.User, pub)
-
-			var hosts = jsontype.(map[string]interface{})
-			for host, user := range hosts {
+			for i := range hosts {
+				host := hosts[i]
 				var out bytes.Buffer
-				cmd := exec.Command("scp", pub, fmt.Sprintf("%v@%v:/tmp/%v.pub",
-					user, host, d.User))
+				cmd := exec.Command("scp", pub, fmt.Sprintf("%v:%v", host, "/tmp/key.pub"))
 				cmd.Stderr = &out
 				err = cmd.Run()
 				if err != nil {
 					fmt.Println(out.String())
 					log.Printf("Error scp: %v", err.Error())
+					continue
 				}
 
-				hoststr := fmt.Sprintf("%v@%v", user, host)
-				log.Printf("Dispatching key to %v", hoststr)
+				log.Printf("Dispatching key to %v", host)
 
-				cmd = exec.Command("ssh", hoststr, "mkdir", "-p", fmt.Sprintf("/home/%v/.ssh", d.User))
+				cmd = exec.Command("ssh", host, "mkdir", "-p", fmt.Sprintf("/home/%v/.ssh", d.User))
 				cmd.Stderr = &out
 				err = cmd.Run()
 				if err != nil {
 					fmt.Println(out.String())
 					log.Printf("Error mkdir: %v", err.Error())
+					continue
 				}
 
-				cmd = exec.Command("ssh", hoststr,
-					fmt.Sprintf("cat /tmp/%v.pub >> /home/%v/.ssh/authorized_keys",
-						d.User, d.User))
+				cmd = exec.Command("ssh", host, fmt.Sprintf("cat /tmp/key.pub >> /home/%v/.ssh/authorized_keys", d.User))
 				cmd.Stderr = &out
 				err = cmd.Run()
 				if err != nil {
 					fmt.Println(out.String())
 					log.Printf("Error cat: %v", err.Error())
+					continue
 				}
 
-				cmd = exec.Command("ssh", hoststr, "chown", "-R",
+				cmd = exec.Command("ssh", host, "chown", "-R",
 					d.User, fmt.Sprintf("/home/%v/.ssh", d.User))
 				cmd.Stderr = &out
 				err = cmd.Run()
 				if err != nil {
 					fmt.Println(out.String())
 					log.Printf("Error chown: %v", err.Error())
+					continue
 				}
 
-				cmd = exec.Command("ssh", hoststr, "chmod", "600", fmt.Sprintf("/home/%v/.ssh/authorized_keys", d.User))
+				cmd = exec.Command("ssh", host, "chmod", "600", fmt.Sprintf("/home/%v/.ssh/authorized_keys", d.User))
 				cmd.Stderr = &out
 				err = cmd.Run()
 				if err != nil {
 					fmt.Println(out.String())
 					log.Printf("Error chmod: %v", err.Error())
+					continue
 				}
 			}
 
