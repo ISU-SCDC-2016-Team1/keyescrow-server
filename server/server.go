@@ -60,11 +60,6 @@ func (s *Server) Loop() {
 			d := message.(Dispatch)
 			log.Printf("Got Dispatch for %v", d.User)
 
-			if validateAuthToken(kr.User, kr.Token) == false {
-				ErrorMessage{Message: "Invalid token"}.Send(s.Responder)
-				continue
-			}
-
 			pub, _ := escrow.UserKeyPath(d.User)
 
 			err := SetGitlabKey(d.User, pub)
@@ -242,9 +237,6 @@ func SetGitlabKey(user string, pubkey string) error {
 	log.Println(body)
 
 	return nil
-
-	//cmd := exec.Command("sh", "addssh.sh", key.User, "ssh-rsa", key.PublicKey)
-	//cmd.Run()
 }
 
 func createAuthToken(username string, password string) string {
