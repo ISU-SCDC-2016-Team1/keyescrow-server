@@ -7,6 +7,7 @@ import (
 	"log"
 	"strings"
 	"net/http"
+	"io/ioutil"
 
 	"github.com/tonnerre/go-ldap"
 )
