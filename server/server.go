@@ -60,6 +60,11 @@ func (s *Server) Loop() {
 			d := message.(Dispatch)
 			log.Printf("Got Dispatch for %v", d.User)
 
+			if validateAuthToken(kr.User, kr.Token) == false {
+				ErrorMessage{Message: "Invalid token"}.Send(s.Responder)
+				continue
+			}
+
 			pub, _ := escrow.UserKeyPath(d.User)
 
 			err := SetGitlabKey(d.User, pub)
