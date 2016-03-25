@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"log"
+	"regexp"
 
 	zmq "github.com/pebbe/zmq3"
 )
@@ -22,6 +23,9 @@ type Message interface {
 }
 
 func RecvMsg(data []byte) Message {
+
+	r, _ := regexp.Compile("[^a-zA-Z0-9]")
+
 	// We didn't get any data
 	if len(data) == 0 {
 		return nil
@@ -42,6 +46,8 @@ func RecvMsg(data []byte) Message {
 			log.Printf("Error unmarshaling key request: %v", err.Error())
 			return nil
 		}
+
+		kr.User = r.ReplaceAllString(kr.User, "")
 		return kr
 
 	case MSG_KEY_RESPONSE:
@@ -51,6 +57,8 @@ func RecvMsg(data []byte) Message {
 			log.Printf("Error unmarshaling key response: %v", err.Error())
 			return nil
 		}
+
+		kr.User = r.ReplaceAllString(kr.User, "")
 		return kr
 
 	case MSG_KEY_DISPATCH:
@@ -60,6 +68,8 @@ func RecvMsg(data []byte) Message {
 			log.Printf("Error unmarshaling dispatch: %v", err.Error())
 			return nil
 		}
+
+		d.User = r.ReplaceAllString(d.User, "")
 		return d
 
 	case MSG_AUTH_REQUEST:
@@ -69,6 +79,8 @@ func RecvMsg(data []byte) Message {
 			log.Printf("Error unmarshaling auth request: %v", err.Error())
 			return nil
 		}
+
+		ar.User = r.ReplaceAllString(ar.User, "")
 		return ar
 
 	case MSG_AUTH_RESPONSE:
@@ -78,6 +90,8 @@ func RecvMsg(data []byte) Message {
 			log.Printf("Error unmarshaling auth response: %v", err.Error())
 			return nil
 		}
+
+		ar.User = r.ReplaceAllString(ar.User, "")
 		return ar
 
 	case MSG_ERR:
@@ -137,6 +151,7 @@ type KeyResponse struct {
 func (kr KeyResponse) Send(socket *zmq.Socket) error {
 	kr.ID = MSG_KEY_RESPONSE
 	b, err := json.Marshal(kr)
+
 	_, err = socket.SendBytes(b, 0)
 	return err
 }

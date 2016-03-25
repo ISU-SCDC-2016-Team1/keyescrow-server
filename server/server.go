@@ -175,7 +175,7 @@ func (s *Server) Loop() {
 			log.Printf("Got Auth Request for: %v", ar.User)
 
 			if escrow.AuthUser(ar.User, ar.Password) == false {
-				ErrorMessage{Message: "Invalid username or password."}.Send(s.Responder)
+				ErrorMessage{Message: "Invalid.Username or password."}.Send(s.Responder)
 				continue
 			}
 
