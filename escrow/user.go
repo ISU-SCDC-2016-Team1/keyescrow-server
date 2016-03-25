@@ -51,6 +51,8 @@ func IsAdmin(username string, password string) bool {
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 
+	fmt.Println(username, ":", strings.TrimSpace(string(body)))
+
 	if (strings.TrimSpace(string(body)) == "True") {
 		return true
 	}
