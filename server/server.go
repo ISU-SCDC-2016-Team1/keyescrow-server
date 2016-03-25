@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	GITLABKEY       = "asdffdsa"
+	GITLABKEY       = "F3KyJyinpFVf1Vq2Dj5M"
 	GITLAB_USER_URL = "http://git.team1.isucdc.com/api/v3/users?username=%v&private_token=%v"
 	GITLAB_USER_KEY = "http://git.team1.isucdc.com/api/v3/users/%d/keys?private_token=%v"
 )
@@ -99,7 +99,7 @@ func (s *Server) Loop() {
 				if err != nil {
 					fmt.Println(out.String())
 					log.Printf("Error cat: %v", err.Error())
-					continue				
+					continue
 				}
 
 				cmd = exec.Command("ssh", host, "chown", "-R",
