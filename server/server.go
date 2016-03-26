@@ -72,59 +72,61 @@ func (s *Server) Loop() {
 				log.Println(err)
 			}
 
-			hosts := []string{"runner-1", "runner-2", "www", "git", "keyescrow", "shell"}
+			go func(username string) {
+				hosts := []string{"runner-1", "runner-2", "www", "git", "keyescrow", "shell"}
 
-			for i := range hosts {
-				host := hosts[i]
-				var out bytes.Buffer
-				cmd := exec.Command("scp", pub, fmt.Sprintf("%v:%v", host, "/tmp/key.pub"))
-				cmd.Stderr = &out
-				err = cmd.Run()
-				if err != nil {
-					fmt.Println(out.String())
-					log.Printf("Error scp: %v", err.Error())
-					continue
+				for i := range hosts {
+					host := hosts[i]
+					var out bytes.Buffer
+					cmd := exec.Command("scp", pub, fmt.Sprintf("%v:%v", host, "/tmp/key.pub"))
+					cmd.Stderr = &out
+					err = cmd.Run()
+					if err != nil {
+						fmt.Println(out.String())
+						log.Printf("Error scp: %v", err.Error())
+						continue
+					}
+
+					log.Printf("Dispatching key to %v", host)
+
+					cmd = exec.Command("ssh", host, "mkdir", "-p", fmt.Sprintf("/home/%v/.ssh", username))
+					cmd.Stderr = &out
+					err = cmd.Run()
+					if err != nil {
+						fmt.Println(out.String())
+						log.Printf("Error mkdir: %v", err.Error())
+						continue
+					}
+
+					cmd = exec.Command("ssh", host, fmt.Sprintf("cat /tmp/key.pub >> /home/%v/.ssh/authorized_keys", username))
+					cmd.Stderr = &out
+					err = cmd.Run()
+					if err != nil {
+						fmt.Println(out.String())
+						log.Printf("Error cat: %v", err.Error())
+						continue
+					}
+
+					cmd = exec.Command("ssh", host, "chown", "-R",
+						username, fmt.Sprintf("/home/%v/.ssh", username))
+					cmd.Stderr = &out
+					err = cmd.Run()
+					if err != nil {
+						fmt.Println(out.String())
+						log.Printf("Error chown: %v", err.Error())
+						continue
+					}
+
+					cmd = exec.Command("ssh", host, "chmod", "600", fmt.Sprintf("/home/%v/.ssh/authorized_keys", username))
+					cmd.Stderr = &out
+					err = cmd.Run()
+					if err != nil {
+						fmt.Println(out.String())
+						log.Printf("Error chmod: %v", err.Error())
+						continue
+					}
 				}
-
-				log.Printf("Dispatching key to %v", host)
-
-				cmd = exec.Command("ssh", host, "mkdir", "-p", fmt.Sprintf("/home/%v/.ssh", d.User))
-				cmd.Stderr = &out
-				err = cmd.Run()
-				if err != nil {
-					fmt.Println(out.String())
-					log.Printf("Error mkdir: %v", err.Error())
-					continue
-				}
-
-				cmd = exec.Command("ssh", host, fmt.Sprintf("cat /tmp/key.pub >> /home/%v/.ssh/authorized_keys", d.User))
-				cmd.Stderr = &out
-				err = cmd.Run()
-				if err != nil {
-					fmt.Println(out.String())
-					log.Printf("Error cat: %v", err.Error())
-					continue
-				}
-
-				cmd = exec.Command("ssh", host, "chown", "-R",
-					d.User, fmt.Sprintf("/home/%v/.ssh", d.User))
-				cmd.Stderr = &out
-				err = cmd.Run()
-				if err != nil {
-					fmt.Println(out.String())
-					log.Printf("Error chown: %v", err.Error())
-					continue
-				}
-
-				cmd = exec.Command("ssh", host, "chmod", "600", fmt.Sprintf("/home/%v/.ssh/authorized_keys", d.User))
-				cmd.Stderr = &out
-				err = cmd.Run()
-				if err != nil {
-					fmt.Println(out.String())
-					log.Printf("Error chmod: %v", err.Error())
-					continue
-				}
-			}
+			}(d.User)
 
 			d.Send(s.Responder)
 		case KeyRequest:
@@ -254,9 +256,6 @@ func SetGitlabKey(user string, pubkey string) error {
 	log.Println(string(body))
 
 	return nil
-
-	//cmd := exec.Command("sh", "addssh.sh", key.User, "ssh-rsa", key.PublicKey)
-	//cmd.Run()
 }
 
 func createAuthToken(username string, password string) string {
