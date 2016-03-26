@@ -8,7 +8,7 @@ import (
 	"strings"
 	"net/http"
 	"io/ioutil"
-
+	"crypto/tls"
 	"github.com/tonnerre/go-ldap"
 )
 
@@ -43,7 +43,11 @@ func AuthUser(username string, password string) bool {
 }
 
 func IsAdmin(username string, password string) bool {
-	resp, err := http.Get("https://ldap.team1.isucdc.com/isAdmin.ashx?user=" + username)
+	tr := &http.Transport{
+        	TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+    	}
+	client := &http.Client{Transport: tr}
+	resp, err := client.Get("https://ldap.team1.isucdc.com/isAdmin.ashx?user=" + username)
 
 	if err != nil {
 		return false

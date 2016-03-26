@@ -12,7 +12,7 @@ import (
 	"os/exec"
 	"time"
 	"net/http"
-
+	"crypto/tls"
 	"crypto/rand"
 
 	"isucdc.com/keyescrow-server/escrow"
@@ -22,8 +22,8 @@ import (
 
 const (
 	GITLABKEY       = "F3KyJyinpFVf1Vq2Dj5M"
-	GITLAB_USER_URL = "http://git.team1.isucdc.com/api/v3/users?username=%v&private_token=%v"
-	GITLAB_USER_KEY = "http://git.team1.isucdc.com/api/v3/users/%d/keys?private_token=%v"
+	GITLAB_USER_URL = "https://git.team1.isucdc.com/api/v3/users?username=%v&private_token=%v"
+	GITLAB_USER_KEY = "https://git.team1.isucdc.com/api/v3/users/%v/keys?private_token=%v"
 )
 
 type authinfo struct {
@@ -31,6 +31,10 @@ type authinfo struct {
 	User     string
 	Issued   time.Time
 	IsAdmin  bool
+}
+
+type GitLab struct {
+	Id	json.Number `json:"id,Number"`
 }
 
 var authTable map[string]authinfo = make(map[string]authinfo)
@@ -200,39 +204,54 @@ func SetGitlabKey(user string, pubkey string) error {
 		return err
 	}
 
-	resp, err := http.Get(fmt.Sprintf(GITLAB_USER_URL, user, GITLABKEY))
+	    tr := &http.Transport{
+        TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+    }
+	client := &http.Client{Transport: tr}
+
+	resp, err := client.Get(fmt.Sprintf(GITLAB_USER_URL, user, GITLABKEY))
 	if err != nil {
+		log.Println(err)
 		return err
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		resp.Body.Close()
+		log.Println(err)
+		log.Println(string(body))
 		return err
 	}
 	resp.Body.Close()
 
-	var jsonObj map[string]string
+	log.Println(string(body))
 
-	err = json.Unmarshal(body, jsonObj)
+	var jsonObj []GitLab
+
+	err = json.Unmarshal(body, &jsonObj)
 	if err != nil {
+		log.Println(err)
 		return err
 	}
 
-	log.Println(jsonObj["id"])
+	log.Println(jsonObj[0].Id)
 
-	resp, err = http.PostForm(fmt.Sprintf(GITLAB_USER_KEY, jsonObj["id"], GITLABKEY), url.Values{"id": {jsonObj["id"]}, "title": {"ssh-rsa"}, "key": {key.PublicKey}})
+	uid := string(jsonObj[0].Id)
+
+	resp, err = client.PostForm(fmt.Sprintf(GITLAB_USER_KEY, uid, GITLABKEY), url.Values{"id": {uid}, "title": {"ssh-rsa"}, "key": {key.PublicKey}})
 	if err != nil {
+		log.Println(err)
 		return err
 	}
 
 	body, err = ioutil.ReadAll(resp.Body)
 	defer resp.Body.Close()
 	if err != nil {
+		log.Println(err)
 		return err
 	}
 
-	log.Println(body)
+	log.Println(string(body))
 
 	return nil
 
